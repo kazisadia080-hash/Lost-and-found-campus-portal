@@ -8,6 +8,10 @@ import { Search, SlidersHorizontal, Loader2, PackageSearch } from 'lucide-react'
 const STATUSES = ['open', 'claimed', 'resolved'];
 const TYPES = ['lost', 'found'];
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+}
+
 export default function Home() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +42,7 @@ export default function Home() {
     api
       .listItems(query)
       .then((data) => setItems(data.items))
-      .catch((e) => setError(e.message))
+      .catch((e: unknown) => setError(getErrorMessage(e)))
       .finally(() => setLoading(false));
   }, [query]);
 

@@ -6,6 +6,10 @@ import ItemCard from '../components/ItemCard';
 import { Loader2, User as UserIcon, Mail, Shield } from 'lucide-react';
 import { toast } from '../components/Toast';
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+}
+
 export default function UserProfile() {
   const { userId } = useParams();
   const [profile, setProfile] = useState<User | null>(null);
@@ -20,7 +24,7 @@ export default function UserProfile() {
         setProfile(userData.user);
         setItems(itemData.items || []);
       })
-      .catch((err) => toast(err.message, 'error'))
+      .catch((err: unknown) => toast(getErrorMessage(err), 'error'))
       .finally(() => setLoading(false));
   }, [userId]);
 
