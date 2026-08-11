@@ -5,6 +5,10 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from '../components/Toast';
 import { Loader2, LogIn } from 'lucide-react';
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+}
+
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -15,7 +19,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const submit = async (e) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -24,7 +28,7 @@ export default function Login() {
       toast(`Welcome back, ${user.name}!`);
       navigate(from);
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     } finally {
       setLoading(false);
     }

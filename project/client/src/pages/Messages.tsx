@@ -6,6 +6,10 @@ import type { Conversation, Message } from '../types';
 import { Loader2, Send, ArrowLeft, Mail, MessageSquare } from 'lucide-react';
 import { toast } from '../components/Toast';
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+}
+
 export default function Messages() {
   const { userId } = useParams();
   const location = useLocation();
@@ -26,7 +30,7 @@ export default function Messages() {
   useEffect(() => {
     api.conversations()
       .then((data) => setConversations(data.conversations || []))
-      .catch((e) => toast(e.message, 'error'))
+      .catch((e: unknown) => toast(getErrorMessage(e), 'error'))
       .finally(() => setLoadingList(false));
   }, []);
 
@@ -42,14 +46,14 @@ export default function Messages() {
       .then((data) => {
         setActiveMessages(data.messages || []);
         setPartner(data.partner || null);
-        const item = data.messages?.find((m) => m.item)?.item;
+        const item = data.messages?.find((m: Message) => m.item)?.item;
         if (item) {
           setSharedItem(item);
         } else {
           setSharedItem(null);
         }
       })
-      .catch((e) => toast(e.message, 'error'))
+      .catch((e: unknown) => toast(getErrorMessage(e), 'error'))
       .finally(() => setLoadingChat(false));
   }, [userId]);
 
@@ -72,7 +76,7 @@ export default function Messages() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeMessages]);
 
-  const send = async (e) => {
+  const send = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!text.trim() || !userId) return;
     setSending(true);
@@ -88,7 +92,7 @@ export default function Messages() {
       setText('');
       api.conversations().then((data) => setConversations(data.conversations || []));
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     } finally {
       setSending(false);
     }

@@ -5,6 +5,10 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from '../components/Toast';
 import { Loader2, UserPlus, Shield } from 'lucide-react';
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+}
+
 export default function Register() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -20,9 +24,10 @@ export default function Register() {
   });
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-  const submit = async (e) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -40,7 +45,7 @@ export default function Register() {
       toast(`Account created. Welcome, ${user.name}!`);
       navigate('/');
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     } finally {
       setLoading(false);
     }

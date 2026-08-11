@@ -5,6 +5,10 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from '../components/Toast';
 import { Loader2, User as UserIcon, Mail, Phone, Shield, Trash2, KeyRound, Save } from 'lucide-react';
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+}
+
 export default function Profile() {
   const { user, updateUser, logout } = useAuth();
   const navigate = useNavigate();
@@ -23,7 +27,7 @@ export default function Profile() {
   const [sendingOtp, setSendingOtp] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const saveName = async (e) => {
+  const saveName = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!name.trim()) return;
     setSavingName(true);
@@ -32,13 +36,13 @@ export default function Profile() {
       updateUser(updated);
       toast('Profile updated.');
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     } finally {
       setSavingName(false);
     }
   };
 
-  const savePassword = async (e) => {
+  const savePassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSavingPassword(true);
     try {
@@ -48,7 +52,7 @@ export default function Profile() {
       setNewPassword('');
       toast('Password updated.');
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     } finally {
       setSavingPassword(false);
     }
@@ -61,13 +65,13 @@ export default function Profile() {
       setOtpSent(true);
       toast('OTP sent to your email.');
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     } finally {
       setSendingOtp(false);
     }
   };
 
-  const confirmDelete = async (e) => {
+  const confirmDelete = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!otp) return;
     setDeleting(true);
@@ -77,7 +81,7 @@ export default function Profile() {
       logout();
       navigate('/');
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     } finally {
       setDeleting(false);
     }

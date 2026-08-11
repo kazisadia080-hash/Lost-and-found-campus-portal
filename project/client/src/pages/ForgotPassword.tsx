@@ -4,6 +4,10 @@ import { api } from '../api';
 import { toast } from '../components/Toast';
 import { Loader2, Mail, KeyRound, ArrowLeft } from 'lucide-react';
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+}
+
 export default function ForgotPassword() {
   const navigate = useNavigate();
   const [step, setStep] = useState<'email' | 'reset'>('email');
@@ -12,7 +16,7 @@ export default function ForgotPassword() {
   const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const sendOtp = async (e) => {
+  const sendOtp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -20,13 +24,13 @@ export default function ForgotPassword() {
       setStep('reset');
       toast('OTP sent to your email.');
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const resetPassword = async (e) => {
+  const resetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -34,7 +38,7 @@ export default function ForgotPassword() {
       toast('Password reset successfully! Please log in.');
       navigate('/login');
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     } finally {
       setLoading(false);
     }

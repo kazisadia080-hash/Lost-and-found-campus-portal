@@ -1,16 +1,22 @@
 import { useState, useCallback } from 'react';
 import { CheckCircle2, AlertCircle, X } from 'lucide-react';
 
-let externalSetter = null;
+interface ToastItem {
+  id: number;
+  message: string;
+  type: 'success' | 'error';
+}
 
-export function toast(message, type = 'success') {
+let externalSetter: ((t: ToastItem) => void) | null = null;
+
+export function toast(message: string, type: 'success' | 'error' = 'success') {
   if (externalSetter) externalSetter({ message, type, id: Date.now() });
 }
 
 export default function ToastHost() {
-  const [toasts, setToasts] = useState([]);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const push = useCallback((t) => {
+  const push = useCallback((t: ToastItem) => {
     setToasts((prev) => [...prev, t]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((x) => x.id !== t.id));

@@ -5,6 +5,10 @@ import { Loader2, Trash2, Package, Users, CheckCircle2, Clock, AlertCircle, Shie
 import { toast } from '../components/Toast';
 import { Link } from 'react-router-dom';
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+}
+
 export default function Admin() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -20,7 +24,7 @@ export default function Admin() {
       setItems(i.items);
       setUsers(u.users);
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     } finally {
       setLoading(false);
     }
@@ -30,14 +34,14 @@ export default function Admin() {
     load();
   }, []);
 
-  const remove = async (id) => {
+  const remove = async (id: string) => {
     if (!confirm('Remove this listing?')) return;
     try {
       await api.adminDeleteItem(id);
       toast('Listing removed.');
       load();
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     }
   };
 

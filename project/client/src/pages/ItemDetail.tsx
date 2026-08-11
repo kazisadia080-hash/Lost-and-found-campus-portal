@@ -25,6 +25,10 @@ import {
 } from 'lucide-react';
 import { toast } from '../components/Toast';
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+}
+
 export default function ItemDetail() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -70,7 +74,7 @@ export default function ItemDetail() {
         setMyClaim(mc.claim || null);
         setClaims(cl.claims || []);
       } catch (err) {
-        if (mounted) setError(err.message);
+        if (mounted) setError(getErrorMessage(err));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -82,7 +86,7 @@ export default function ItemDetail() {
     };
   }, [id, user]);
 
-  const submitClaim = async (e) => {
+  const submitClaim = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!note.trim()) return;
     setSubmitting(true);
@@ -93,13 +97,13 @@ export default function ItemDetail() {
       setNote('');
       toast('Claim submitted! The owner will review it.');
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const reviewClaim = async (claimId, status) => {
+  const reviewClaim = async (claimId: string, status: 'approved' | 'rejected') => {
     try {
       const { claim } = await api.reviewClaim(claimId, { status });
       setClaims((prev) =>
@@ -112,7 +116,7 @@ export default function ItemDetail() {
         toast('Claim rejected.');
       }
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     }
   };
 
@@ -123,7 +127,7 @@ export default function ItemDetail() {
       setItem(updated);
       toast(newStatus === 'resolved' ? 'Item marked as resolved.' : 'Item reopened.');
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     }
   };
 
@@ -134,11 +138,15 @@ export default function ItemDetail() {
       toast('Listing deleted.');
       navigate('/my-items');
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     }
   };
 
-  const submitComment = async (e, parentId = null, text = commentText) => {
+  const submitComment = async (
+    e: React.FormEvent<HTMLFormElement>,
+    parentId: string | null = null,
+    text: string = commentText
+  ) => {
     e.preventDefault();
     if (!text.trim()) return;
     setPostingComment(true);
@@ -156,19 +164,19 @@ export default function ItemDetail() {
       }
       toast('Comment posted.');
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     } finally {
       setPostingComment(false);
     }
   };
 
-  const removeComment = async (commentId) => {
+  const removeComment = async (commentId: string) => {
     try {
       await api.deleteComment(id!, commentId);
       setComments((prev) => prev.filter((c) => c._id !== commentId));
       toast('Comment deleted.');
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     }
   };
 
@@ -273,8 +281,8 @@ export default function ItemDetail() {
                 ) : (
                   <>
                     <p>Email: {item.postedBy?.email}</p>
-                    {item.postedBy?.phone ? (
-                      <p className="mt-1">Phone: {item.postedBy.phone}</p>
+                    {(item.postedBy as any)?.phone ? (
+                      <p className="mt-1">Phone: {(item.postedBy as any).phone}</p>
                     ) : null}
                   </>
                 )}

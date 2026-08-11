@@ -102,7 +102,15 @@ export default function MyItems() {
   );
 }
 
-function EmptyState({ icon, text, children }) {
+function EmptyState({
+  icon,
+  text,
+  children,
+}: {
+  icon: React.ReactNode;
+  text: string;
+  children?: React.ReactNode;
+}) {
   return (
     <div className="card flex flex-col items-center gap-3 p-12 text-center text-slate-400">
       {icon}

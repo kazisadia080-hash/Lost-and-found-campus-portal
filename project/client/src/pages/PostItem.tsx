@@ -9,6 +9,10 @@ import { ImagePlus, X, Loader2, Send, Save } from 'lucide-react';
 
 const TYPES = ['lost', 'found'];
 
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+}
+
 export default function PostItem() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -44,18 +48,20 @@ export default function PostItem() {
         });
         setImages(item.images || []);
       })
-      .catch((err) => toast(err.message, 'error'))
+      .catch((err: unknown) => toast(getErrorMessage(err), 'error'))
       .finally(() => setLoading(false));
   }, [id]);
 
-  const handleChange = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-  const handleFiles = async (files) => {
+  const handleFiles = async (files: FileList) => {
     const list = Array.from(files).slice(0, 3 - images.length);
     if (!list.length) return;
     setProcessing(true);
     try {
-      const compressed = await Promise.all(list.map((f) => fileToCompressedDataUrl(f)));
+      const compressed = await Promise.all(list.map((f: File) => fileToCompressedDataUrl(f)));
       setImages((prev) => [...prev, ...compressed].slice(0, 3));
     } catch {
       toast('Could not process one of the images.', 'error');
@@ -65,9 +71,10 @@ export default function PostItem() {
     }
   };
 
-  const removeImage = (i) => setImages((prev) => prev.filter((_, idx) => idx !== i));
+  const removeImage = (i: number) =>
+    setImages((prev) => prev.filter((_, idx) => idx !== i));
 
-  const submit = async (e) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitting(true);
     try {
@@ -81,7 +88,7 @@ export default function PostItem() {
         navigate(`/items/${item._id}`);
       }
     } catch (err) {
-      toast(err.message, 'error');
+      toast(getErrorMessage(err), 'error');
     } finally {
       setSubmitting(false);
     }

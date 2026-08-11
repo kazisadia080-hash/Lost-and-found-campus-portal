@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from './Navbar';
 import { Search } from 'lucide-react';
 
-export default function Layout({ children }) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
 

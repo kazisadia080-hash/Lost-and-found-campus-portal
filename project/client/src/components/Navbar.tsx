@@ -14,7 +14,7 @@ export default function Navbar() {
     navigate('/');
   };
 
-  const navLink = (to, label, icon) => (
+  const navLink = (to: string, label: string, icon: React.ReactNode) => (
     <Link
       to={to}
       onClick={() => setOpen(false)}
