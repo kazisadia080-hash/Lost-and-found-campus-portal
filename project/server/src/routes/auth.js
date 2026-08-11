@@ -131,7 +131,8 @@ router.post(
 
     try {
       await sendOtpEmail(user.email, code, 'reset_password');
-    } catch {
+    } catch (err) {
+      console.error('sendOtpEmail failed (forgot-password):', err);
       return res.status(500).json({ message: 'Failed to send OTP email. Check server email configuration.' });
     }
 
@@ -190,7 +191,8 @@ router.post(
 
     try {
       await sendOtpEmail(user.email, code, 'delete_account');
-    } catch {
+    } catch (err) {
+      console.error('sendOtpEmail failed (delete-otp):', err);
       return res.status(500).json({ message: 'Failed to send OTP email. Check server email configuration.' });
     }
 

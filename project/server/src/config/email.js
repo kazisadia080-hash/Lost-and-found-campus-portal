@@ -9,10 +9,19 @@ function getTransporter() {
     transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
       port: parseInt(process.env.EMAIL_PORT || '587', 10),
-      secure: process.env.EMAIL_PORT === '465',
+      secure: parseInt(process.env.EMAIL_PORT || '587', 10) === 465,
       auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
     });
+
+    transporter.verify((err) => {
+      if (err) {
+        console.error('SMTP transporter verification failed:', err);
+      } else {
+        console.log('SMTP transporter ready to send emails.');
+      }
+    });
   } else {
+    console.warn('EMAIL_HOST/EMAIL_USER/EMAIL_PASS not fully set — using stream transport (emails will not actually send).');
     transporter = nodemailer.createTransport({
       streamTransport: true,
       newline: 'unix',
