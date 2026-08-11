@@ -10,12 +10,27 @@ import userRoutes from './routes/users.js';
 
 const app = express();
 
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  'https://lost-and-found-campus-portal-phi.vercel.app',
+  'http://localhost:5173',
+]
+  .filter(Boolean)
+  .map((url) => url.replace(/\/$/, ''));
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      const allowed = process.env.CLIENT_URL;
-      if (!origin || !allowed || origin === allowed) return callback(null, true);
-      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+      // allow requests with no origin (curl, server-to-server, health checks)
+      if (!origin) return callback(null, true);
+
+      const normalized = origin.replace(/\/$/, '');
+      if (allowedOrigins.includes(normalized)) {
+        return callback(null, true);
+      }
+
+      console.warn(`Blocked by CORS: ${origin}`);
+      return callback(null, false);
     },
     credentials: true,
   })
