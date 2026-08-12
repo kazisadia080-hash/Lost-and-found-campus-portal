@@ -79,13 +79,23 @@ function getTransporter() {
 
 export async function sendOtpEmail(toEmail, otpCode, purpose) {
   const transport = getTransporter();
-  const subject = purpose === 'reset_password' ? 'Your password reset OTP' : 'Your account deletion OTP';
-  const text = purpose === 'reset_password'
-    ? `Your OTP for password reset is: ${otpCode}\n\nThis code expires in 10 minutes. If you did not request this, you can safely ignore this email.`
-    : `Your OTP for account deletion is: ${otpCode}\n\nThis code expires in 10 minutes. If you did not request this, you can safely ignore this email.`;
-  const html = purpose === 'reset_password'
-    ? `<p>Your OTP for password reset is:</p><h2 style="letter-spacing:4px;font-size:28px">${otpCode}</h2><p>This code expires in 10 minutes. If you did not request this, you can safely ignore this email.</p>`
-    : `<p>Your OTP for account deletion is:</p><h2 style="letter-spacing:4px;font-size:28px">${otpCode}</h2><p>This code expires in 10 minutes. If you did not request this, you can safely ignore this email.</p>`;
+  let subject = 'Your OTP code';
+  let text = `Your OTP is: ${otpCode}\n\nThis code expires in 10 minutes.`;
+  let html = `<p>Your OTP is:</p><h2 style="letter-spacing:4px;font-size:28px">${otpCode}</h2><p>This code expires in 10 minutes.</p>`;
+
+  if (purpose === 'reset_password') {
+    subject = 'Your password reset OTP';
+    text = `Your OTP for password reset is: ${otpCode}\n\nThis code expires in 10 minutes. If you did not request this, you can safely ignore this email.`;
+    html = `<p>Your OTP for password reset is:</p><h2 style="letter-spacing:4px;font-size:28px">${otpCode}</h2><p>This code expires in 10 minutes. If you did not request this, you can safely ignore this email.</p>`;
+  } else if (purpose === 'delete_account') {
+    subject = 'Your account deletion OTP';
+    text = `Your OTP for account deletion is: ${otpCode}\n\nThis code expires in 10 minutes. If you did not request this, you can safely ignore this email.`;
+    html = `<p>Your OTP for account deletion is:</p><h2 style="letter-spacing:4px;font-size:28px">${otpCode}</h2><p>This code expires in 10 minutes. If you did not request this, you can safely ignore this email.</p>`;
+  } else if (purpose === 'verify_university') {
+    subject = 'Verify your university email';
+    text = `Your OTP to verify your university email is: ${otpCode}\n\nThis code expires in 10 minutes.`;
+    html = `<p>Your OTP to verify your university email is:</p><h2 style="letter-spacing:4px;font-size:28px">${otpCode}</h2><p>This code expires in 10 minutes.</p>`;
+  }
   const mailOptions = {
     from: process.env.EMAIL_FROM || 'Lost & Found <noreply@lostfound.local>',
     to: toEmail,

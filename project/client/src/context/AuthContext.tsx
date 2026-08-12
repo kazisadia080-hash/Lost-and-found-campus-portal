@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { api } from '../api';
 import type { User } from '../types';
+import { connectSocket, disconnectSocket } from '../socket';
 
 interface AuthContextValue {
   user: User | null;
@@ -25,7 +26,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     api
       .me()
-      .then((data) => setUser(data.user))
+      .then((data) => {
+        setUser(data.user);
+        try { connectSocket(data.user._id); } catch (e) { /* ignore */ }
+      })
       .catch(() => localStorage.removeItem('token'))
       .finally(() => setLoading(false));
   }, []);
@@ -33,11 +37,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback((token: string, u: User) => {
     localStorage.setItem('token', token);
     setUser(u);
+    try {
+      connectSocket(u._id);
+    } catch (e) {
+      // ignore socket errors
+    }
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem('token');
     setUser(null);
+    try {
+      disconnectSocket();
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   const updateUser = useCallback((u: User) => {

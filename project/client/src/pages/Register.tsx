@@ -19,8 +19,9 @@ export default function Register() {
     phone: '',
     studentId: '',
     password: '',
-    role: 'user' as 'user' | 'admin',
+    role: 'student' as 'student' | 'teacher' | 'librarian' | 'staff' | 'other' | 'admin',
     adminCode: '',
+    universityEmail: '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -38,12 +39,12 @@ export default function Register() {
         password: form.password,
         studentId: form.studentId,
         role: form.role,
+        universityEmail: form.universityEmail,
       };
       if (form.role === 'admin') payload.adminCode = form.adminCode;
-      const { token, user } = await api.register(payload);
-      login(token, user);
-      toast(`Account created. Welcome, ${user.name}!`);
-      navigate('/');
+      const resp = await api.register(payload);
+      toast('OTP sent to your university email. Please verify to activate account.');
+      navigate(`/verify-university?userId=${resp.userId}`);
     } catch (err) {
       toast(getErrorMessage(err), 'error');
     } finally {
@@ -59,33 +60,16 @@ export default function Register() {
       </div>
 
       <form onSubmit={submit} className="card space-y-4 p-6">
-        {/* Role toggle */}
         <div>
-          <label className="label">Account type</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setForm((f) => ({ ...f, role: 'user' }))}
-              className={`rounded-lg border-2 px-4 py-2.5 text-sm font-semibold transition ${
-                form.role === 'user'
-                  ? 'border-primary-500 bg-primary-50 text-primary-700'
-                  : 'border-slate-200 text-slate-500 hover:border-slate-300'
-              }`}
-            >
-              Regular User
-            </button>
-            <button
-              type="button"
-              onClick={() => setForm((f) => ({ ...f, role: 'admin' }))}
-              className={`flex items-center justify-center gap-1.5 rounded-lg border-2 px-4 py-2.5 text-sm font-semibold transition ${
-                form.role === 'admin'
-                  ? 'border-primary-500 bg-primary-50 text-primary-700'
-                  : 'border-slate-200 text-slate-500 hover:border-slate-300'
-              }`}
-            >
-              <Shield size={14} /> Admin
-            </button>
-          </div>
+          <label className="label">Account role</label>
+          <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as any }))} className="input">
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+            <option value="librarian">Librarian</option>
+            <option value="staff">Staff</option>
+            <option value="other">Other</option>
+            <option value="admin">Admin</option>
+          </select>
         </div>
 
         <div>
@@ -107,6 +91,11 @@ export default function Register() {
         <div>
           <label className="label">Password</label>
           <input type="password" name="password" value={form.password} onChange={handleChange} required minLength={6} className="input" placeholder="At least 6 characters" />
+        </div>
+
+        <div>
+          <label className="label">University email (BUBT)</label>
+          <input type="email" name="universityEmail" value={form.universityEmail} onChange={handleChange} required className="input" placeholder="yourid@cse.bubt.edu.bd" />
         </div>
 
         {form.role === 'admin' && (

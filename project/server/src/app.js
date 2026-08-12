@@ -7,6 +7,7 @@ import claimRoutes from './routes/claims.js';
 import adminRoutes from './routes/admin.js';
 import messageRoutes from './routes/messages.js';
 import userRoutes from './routes/users.js';
+import notificationRoutes from './routes/notifications.js';
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use('/api/claims', claimRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.use((req, res) => res.status(404).json({ message: 'Not found' }));
 

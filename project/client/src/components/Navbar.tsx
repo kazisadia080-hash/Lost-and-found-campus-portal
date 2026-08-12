@@ -1,12 +1,70 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { Search, PlusCircle, LogOut, User as UserIcon, Shield, Package, Menu, X, MessageSquare, UserCircle } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Search, PlusCircle, LogOut, User as UserIcon, Shield, Package, Menu, X, MessageSquare, UserCircle, Bell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { api } from '../api';
+import { getSocket } from '../socket';
 
 export default function Navbar() {
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(0);
+  const location = useLocation();
+
+  const loadNotificationCount = async () => {
+    try {
+      const { count } = await api.notificationsUnreadCount();
+      setNotificationCount(count || 0);
+    } catch {
+      setNotificationCount(0);
+    }
+  };
+
+  const loadMessageCount = async () => {
+    try {
+      const { conversations } = await api.conversations();
+      setMessageCount(
+        (conversations || []).reduce((sum: number, c: any) => sum + (c.unread || 0), 0)
+      );
+    } catch {
+      setMessageCount(0);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) {
+      setNotificationCount(0);
+      setMessageCount(0);
+      return;
+    }
+    loadNotificationCount();
+    loadMessageCount();
+    const socket = getSocket();
+    if (!socket) return;
+    const refreshNotifications = () => loadNotificationCount();
+    const refreshMessages = () => loadMessageCount();
+    const messageHandler = () => {
+      refreshMessages();
+      refreshNotifications();
+    };
+    socket.on('newComment', refreshNotifications);
+    socket.on('newMessage', messageHandler);
+    return () => {
+      socket.off('newComment', refreshNotifications);
+      socket.off('newMessage', messageHandler);
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (location.pathname.startsWith('/messages')) {
+      setMessageCount(0);
+    }
+    if (location.pathname.startsWith('/notifications')) {
+      setNotificationCount(0);
+    }
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -39,7 +97,34 @@ export default function Navbar() {
           {navLink('/', 'Browse', <Search size={16} />)}
           {user && navLink('/post', 'Post Item', <PlusCircle size={16} />)}
           {user && navLink('/my-items', 'My Items', <Package size={16} />)}
-          {user && navLink('/messages', 'Messages', <MessageSquare size={16} />)}
+          {user && (
+            <Link
+              to="/messages"
+              onClick={() => setOpen(false)}
+              className="relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+            >
+              <MessageSquare size={16} /> Messages
+              {messageCount > 0 && location.pathname !== '/messages' && (
+                <span className="absolute -right-1 top-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary-600 px-1 text-[10px] font-bold text-white">
+                  {messageCount}
+                </span>
+              )}
+            </Link>
+          )}
+          {user && (
+            <Link
+              to="/notifications"
+              onClick={() => setOpen(false)}
+              className="relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+            >
+              <Bell size={16} /> Notifications
+              {notificationCount > 0 && location.pathname !== '/notifications' && (
+                <span className="absolute -right-1 top-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary-600 px-1 text-[10px] font-bold text-white">
+                  {notificationCount}
+                </span>
+              )}
+            </Link>
+          )}
           {isAdmin && navLink('/admin', 'Admin', <Shield size={16} />)}
         </nav>
 
@@ -76,7 +161,34 @@ export default function Navbar() {
             {navLink('/', 'Browse', <Search size={16} />)}
             {user && navLink('/post', 'Post Item', <PlusCircle size={16} />)}
             {user && navLink('/my-items', 'My Items', <Package size={16} />)}
-            {user && navLink('/messages', 'Messages', <MessageSquare size={16} />)}
+            {user && (
+              <Link
+                to="/messages"
+                onClick={() => setOpen(false)}
+                className="relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+              >
+                <MessageSquare size={16} /> Messages
+                {messageCount > 0 && location.pathname !== '/messages' && (
+                  <span className="absolute -right-1 top-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary-600 px-1 text-[10px] font-bold text-white">
+                    {messageCount}
+                  </span>
+                )}
+              </Link>
+            )}
+            {user && (
+              <Link
+                to="/notifications"
+                onClick={() => setOpen(false)}
+                className="relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition"
+              >
+                <Bell size={16} /> Notifications
+                {notificationCount > 0 && location.pathname !== '/notifications' && (
+                  <span className="absolute -right-1 top-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary-600 px-1 text-[10px] font-bold text-white">
+                    {notificationCount}
+                  </span>
+                )}
+              </Link>
+            )}
             {user && navLink('/profile', 'Profile', <UserCircle size={16} />)}
             {isAdmin && navLink('/admin', 'Admin', <Shield size={16} />)}
           </div>

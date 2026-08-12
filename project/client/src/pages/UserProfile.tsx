@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../api';
+import { useAuth } from '../context/AuthContext';
 import type { Item, User } from '../types';
 import ItemCard from '../components/ItemCard';
 import { Loader2, User as UserIcon, Mail, Shield } from 'lucide-react';
@@ -12,6 +13,7 @@ function getErrorMessage(err: unknown): string {
 
 export default function UserProfile() {
   const { userId } = useParams();
+  const { user: currentUser } = useAuth();
   const [profile, setProfile] = useState<User | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,13 +47,17 @@ export default function UserProfile() {
     );
   }
 
+  const canViewContact = currentUser?._id === profile._id;
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="card mb-6 p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{profile.name}</h1>
-            <p className="text-sm text-slate-500">{profile.email}</p>
+            <p className="text-sm text-slate-500">
+              {canViewContact ? profile.email : 'Contact information is private.'}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2 text-sm text-slate-600">
             {profile.studentId && (
@@ -71,6 +77,11 @@ export default function UserProfile() {
         </div>
         <Link to="/messages" className="btn-secondary">View messages</Link>
       </div>
+      {!canViewContact && (
+        <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          Personal contact details are hidden unless this user shares them through an approved claim.
+        </div>
+      )}
 
       {items.length === 0 ? (
         <div className="card p-12 text-center text-slate-500">This user has not posted any items yet.</div>

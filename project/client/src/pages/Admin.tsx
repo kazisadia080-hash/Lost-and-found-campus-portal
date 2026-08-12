@@ -45,6 +45,27 @@ export default function Admin() {
     }
   };
 
+  const updateStatus = async (id: string, status: 'active' | 'suspended' | 'banned') => {
+    try {
+      await api.adminUpdateUserStatus(id, status);
+      toast('User status updated.');
+      load();
+    } catch (err) {
+      toast(getErrorMessage(err), 'error');
+    }
+  };
+
+  const deleteUser = async (id: string) => {
+    if (!confirm('Delete this user and all associated content?')) return;
+    try {
+      await api.adminDeleteUser(id);
+      toast('User deleted.');
+      load();
+    } catch (err) {
+      toast(getErrorMessage(err), 'error');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-slate-400">
@@ -157,7 +178,9 @@ export default function Admin() {
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Student ID</th>
                   <th className="px-4 py-3">Role</th>
+                  <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Joined</th>
+                  <th className="px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -173,8 +196,47 @@ export default function Admin() {
                         <span className="badge bg-slate-100 text-slate-600">user</span>
                       )}
                     </td>
+                    <td className="px-4 py-3">
+                      <span className={`badge ${
+                        u.status === 'active' ? 'badge-open' : u.status === 'suspended' ? 'badge-warning' : 'badge-danger'
+                      }`}>{u.status || 'active'}</span>
+                    </td>
                     <td className="px-4 py-3 text-slate-500">
                       {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {u.status !== 'active' && (
+                          <button
+                            onClick={() => updateStatus(u._id, 'active')}
+                            className="btn-success !px-2.5 !py-1.5"
+                          >
+                            Activate
+                          </button>
+                        )}
+                        {u.status !== 'suspended' && (
+                          <button
+                            onClick={() => updateStatus(u._id, 'suspended')}
+                            className="btn-warning !px-2.5 !py-1.5"
+                          >
+                            Suspend
+                          </button>
+                        )}
+                        {u.status !== 'banned' && (
+                          <button
+                            onClick={() => updateStatus(u._id, 'banned')}
+                            className="btn-danger !px-2.5 !py-1.5"
+                          >
+                            Ban
+                          </button>
+                        )}
+                        <button
+                          onClick={() => deleteUser(u._id)}
+                          className="btn-secondary !px-2.5 !py-1.5"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

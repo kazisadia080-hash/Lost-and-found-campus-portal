@@ -8,7 +8,7 @@ const router = Router();
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    const user = await User.findById(req.params.id).select('name email studentId role createdAt');
+    const user = await User.findById(req.params.id).select('name studentId role createdAt universityVerified status');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json({ user });
   })

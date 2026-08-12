@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
 import type { Item, Claim, Comment } from '../types';
 import UserActionMenu from '../components/UserActionMenu';
+import { fileToCompressedDataUrl } from '../utils/image';
 import {
   MapPin,
   Calendar,
@@ -13,6 +14,7 @@ import {
   Loader2,
   ArrowLeft,
   CheckCircle2,
+  X,
   XCircle,
   Clock,
   Trash2,
@@ -45,9 +47,13 @@ export default function ItemDetail() {
   const [submitting, setSubmitting] = useState(false);
   const [myClaim, setMyClaim] = useState<Claim | null>(null);
   const [commentText, setCommentText] = useState('');
+  const [commentAttachments, setCommentAttachments] = useState<string[]>([]);
   const [replyText, setReplyText] = useState('');
+  const [replyAttachments, setReplyAttachments] = useState<string[]>([]);
   const [postingComment, setPostingComment] = useState(false);
   const [replyTo, setReplyTo] = useState<Comment | null>(null);
+  const commentFileRef = useRef<HTMLInputElement>(null);
+  const replyFileRef = useRef<HTMLInputElement>(null);
 
   const isOwner = user && item?.postedBy?._id === user._id;
   const canClaim = user && !isOwner;
@@ -142,25 +148,61 @@ export default function ItemDetail() {
     }
   };
 
+  const handleCommentFiles = async (files: FileList) => {
+    const list = Array.from(files).slice(0, 3 - commentAttachments.length);
+    if (!list.length) return;
+    try {
+      const compressed = await Promise.all(list.map((f) => fileToCompressedDataUrl(f)));
+      setCommentAttachments((prev) => [...prev, ...compressed].slice(0, 3));
+    } catch {
+      toast('Could not process one of the attachments.', 'error');
+    } finally {
+      if (commentFileRef.current) commentFileRef.current.value = '';
+    }
+  };
+
+  const handleReplyFiles = async (files: FileList) => {
+    const list = Array.from(files).slice(0, 3 - replyAttachments.length);
+    if (!list.length) return;
+    try {
+      const compressed = await Promise.all(list.map((f) => fileToCompressedDataUrl(f)));
+      setReplyAttachments((prev) => [...prev, ...compressed].slice(0, 3));
+    } catch {
+      toast('Could not process one of the attachments.', 'error');
+    } finally {
+      if (replyFileRef.current) replyFileRef.current.value = '';
+    }
+  };
+
+  const removeCommentAttachment = (index: number) =>
+    setCommentAttachments((prev) => prev.filter((_, idx) => idx !== index));
+
+  const removeReplyAttachment = (index: number) =>
+    setReplyAttachments((prev) => prev.filter((_, idx) => idx !== index));
+
   const submitComment = async (
     e: React.FormEvent<HTMLFormElement>,
     parentId: string | null = null,
     text: string = commentText
   ) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    const attachments = parentId ? replyAttachments : commentAttachments;
+    if (!text.trim() && attachments.length === 0) return;
     setPostingComment(true);
     try {
       const { comment } = await api.addComment(id!, {
         text,
         parentId,
+        attachments,
       });
       setComments((prev) => [...prev, comment]);
       if (parentId) {
         setReplyText('');
+        setReplyAttachments([]);
         setReplyTo(null);
       } else {
         setCommentText('');
+        setCommentAttachments([]);
       }
       toast('Comment posted.');
     } catch (err) {
@@ -412,17 +454,50 @@ export default function ItemDetail() {
         </h2>
 
         {user ? (
-          <form onSubmit={submitComment} className="mb-6 flex gap-2">
+          <form onSubmit={submitComment} className="mb-6 space-y-3">
+            <div className="flex gap-2">
+              <input
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Write a comment…"
+                maxLength={500}
+                className="input flex-1"
+              />
+              <button type="button" onClick={() => commentFileRef.current?.click()} className="btn-secondary">
+                Attach
+              </button>
+              <button
+                type="submit"
+                disabled={postingComment || (!commentText.trim() && commentAttachments.length === 0)}
+                className="btn-primary"
+              >
+                {postingComment ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              </button>
+            </div>
             <input
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Write a comment…"
-              maxLength={500}
-              className="input flex-1"
+              ref={commentFileRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => e.target.files && handleCommentFiles(e.target.files)}
             />
-            <button type="submit" disabled={postingComment || !commentText.trim()} className="btn-primary">
-              {postingComment ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-            </button>
+            {commentAttachments.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {commentAttachments.map((src, idx) => (
+                  <div key={idx} className="relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200">
+                    <img src={src} alt={`attachment-${idx}`} className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeCommentAttachment(idx)}
+                      className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </form>
         ) : (
           <p className="mb-6 text-sm text-slate-500">
@@ -469,6 +544,19 @@ export default function ItemDetail() {
                         </div>
                       </div>
                       <p className="mt-2 text-sm leading-relaxed text-slate-600">{comment.text}</p>
+                      {comment.attachments && comment.attachments.length > 0 && (
+                        <div className="mt-3 grid grid-cols-3 gap-2">
+                          {comment.attachments.map((src, idx) => (
+                            <img
+                              key={idx}
+                              src={src}
+                              alt={`comment-${idx}`}
+                              className="h-20 w-full rounded-lg object-cover cursor-pointer"
+                              onClick={() => window.open(src, '_blank')}
+                            />
+                          ))}
+                        </div>
+                      )}
                       <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
                         {user && (
                           <button
@@ -476,6 +564,7 @@ export default function ItemDetail() {
                             onClick={() => {
                               setReplyTo(comment);
                               setReplyText('');
+                              setReplyAttachments([]);
                             }}
                             className="text-primary-600 hover:text-primary-800"
                           >
@@ -500,8 +589,19 @@ export default function ItemDetail() {
                           className="input w-full"
                           placeholder="Write your reply…"
                         />
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button type="submit" disabled={postingComment || !replyText.trim()} className="btn-primary">
+                        <div className="mt-3 flex gap-2">
+                          <button type="button" onClick={() => replyFileRef.current?.click()} className="btn-secondary">
+                            Attach
+                          </button>
+                          <input
+                            ref={replyFileRef}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => e.target.files && handleReplyFiles(e.target.files)}
+                          />
+                          <button type="submit" disabled={postingComment || (!replyText.trim() && replyAttachments.length === 0)} className="btn-primary">
                             {postingComment ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                             Reply
                           </button>
@@ -509,6 +609,22 @@ export default function ItemDetail() {
                             Cancel
                           </button>
                         </div>
+                        {replyAttachments.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {replyAttachments.map((src, idx) => (
+                              <div key={idx} className="relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200">
+                                <img src={src} alt={`reply-attachment-${idx}`} className="h-full w-full object-cover" />
+                                <button
+                                  type="button"
+                                  onClick={() => removeReplyAttachment(idx)}
+                                  className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </form>
                     )}
 

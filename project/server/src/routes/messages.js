@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import Item from '../models/Item.js';
 import { auth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { getIo } from '../socket.js';
 
 const router = Router();
 
@@ -18,7 +19,7 @@ router.get(
     const received = await Message.find({ recipient: userId }).distinct('sender');
     const partnerIds = [...new Set([...sent.map(String), ...received.map(String)])];
 
-    const partners = await User.find({ _id: { $in: partnerIds } }).select('name email');
+    const partners = await User.find({ _id: { $in: partnerIds } }).select('name');
     const lastMessages = await Promise.all(
       partnerIds.map((pid) =>
         Message.findOne({
@@ -43,7 +44,7 @@ router.get(
     const conversations = partners.map((p) => {
       const last = lastMessages.find((m) => m && (m.sender._id.toString() === p._id.toString() || m.recipient._id.toString() === p._id.toString()));
       return {
-        user: { _id: p._id, name: p.name, email: p.email },
+        user: { _id: p._id, name: p.name },
         lastMessage: last ? last.text : '',
         lastAt: last ? last.createdAt : null,
         unread: unreadMap[p._id.toString()] || 0,
@@ -77,10 +78,10 @@ router.get(
 
     await Message.updateMany(
       { sender: partnerId, recipient: userId, read: false },
-      { $set: { read: true } }
+      { $set: { read: true, seenAt: new Date() } }
     );
 
-    const partner = await User.findById(partnerId).select('name email');
+    const partner = await User.findById(partnerId).select('name');
 
     res.json({ messages, partner });
   })
@@ -90,9 +91,10 @@ router.get(
 router.post(
   '/:userId',
   auth(),
+
   asyncHandler(async (req, res) => {
-    const { text } = req.body;
-    if (!text || !text.trim()) {
+    const { text, attachments } = req.body;
+    if ((!text || !text.trim()) && (!attachments || !Array.isArray(attachments) || attachments.length === 0)) {
       return res.status(400).json({ message: 'Message cannot be empty' });
     }
 
@@ -102,7 +104,8 @@ router.post(
     const messagePayload = {
       sender: req.user.id,
       recipient: req.params.userId,
-      text: text.trim(),
+      text: text ? text.trim() : '',
+      attachments: Array.isArray(attachments) ? attachments : [],
     };
     if (req.body.itemId) {
       const item = await Item.findById(req.body.itemId);
@@ -110,9 +113,22 @@ router.post(
       messagePayload.item = item._id;
     }
     const message = await Message.create(messagePayload);
+    // mark as delivered
+    message.deliveredAt = new Date();
+    await message.save();
     await message.populate('sender', 'name');
     await message.populate('recipient', 'name');
     await message.populate('item', 'title');
+
+    // create a notification for recipient and emit socket event
+    try {
+      const Notification = (await import('../models/Notification.js')).default;
+      await Notification.create({ user: req.params.userId, from: req.user.id, type: 'message', message: message._id, text: (message.text || '').slice(0, 200) });
+      const io = getIo();
+      if (io) io.to(`user:${req.params.userId}`).emit('newMessage', { message });
+    } catch (err) {
+      console.error('Failed to create message notification:', err);
+    }
 
     res.status(201).json({ message });
   })

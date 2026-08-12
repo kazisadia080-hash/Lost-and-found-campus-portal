@@ -8,10 +8,13 @@ import PostItem from './pages/PostItem';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
+import VerifyUniversity from './pages/VerifyUniversity';
+import RequestUniversityVerify from './pages/RequestUniversityVerify';
 import MyItems from './pages/MyItems';
 import Profile from './pages/Profile';
 import UserProfile from './pages/UserProfile';
 import Messages from './pages/Messages';
+import Notifications from './pages/Notifications';
 import Admin from './pages/Admin';
 import NotFound from './pages/NotFound';
 
@@ -32,6 +35,8 @@ function App() {
           />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/verify-university" element={<VerifyUniversity />} />
+          <Route path="/request-university-verify" element={<RequestUniversityVerify />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route
             path="/post"
@@ -71,6 +76,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Messages />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <Notifications />
               </ProtectedRoute>
             }
           />

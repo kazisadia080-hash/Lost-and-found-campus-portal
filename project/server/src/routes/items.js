@@ -5,6 +5,7 @@ import Comment from '../models/Comment.js';
 import User from '../models/User.js';
 import { auth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { getIo } from '../socket.js';
 
 const router = Router();
 
@@ -32,7 +33,7 @@ router.get(
     }
     const items = await Item.find(filter)
       .sort({ createdAt: -1 })
-      .populate('postedBy', 'name email phone');
+      .populate('postedBy', 'name');
     res.json({ items });
   })
 );
@@ -110,7 +111,13 @@ router.post(
       postedBy: req.user.id,
       status: 'open',
     });
-    await item.populate('postedBy', 'name email');
+    await item.populate('postedBy', 'name');
+    try {
+      const io = getIo();
+      if (io) io.emit('newItem', { item });
+    } catch (err) {
+      console.error('failed to emit newItem socket event', err);
+    }
     res.status(201).json({ item });
   })
 );
@@ -131,7 +138,7 @@ router.patch(
       if (req.body[key] !== undefined) item[key] = req.body[key];
     }
     await item.save();
-    await item.populate('postedBy', 'name email');
+    await item.populate('postedBy', 'name');
     res.json({ item });
   })
 );
@@ -229,7 +236,8 @@ router.post(
   auth(),
   asyncHandler(async (req, res) => {
     const { text, parentId } = req.body;
-    if (!text || !text.trim()) {
+    const attachmentsProvided = Array.isArray(req.body.attachments) && req.body.attachments.length > 0;
+    if ((!text || !text.trim()) && !attachmentsProvided) {
       return res.status(400).json({ message: 'Comment cannot be empty' });
     }
     const item = await Item.findById(req.params.id);
@@ -243,14 +251,28 @@ router.post(
       }
     }
 
+    const attachments = Array.isArray(req.body.attachments) ? req.body.attachments : [];
+
     const comment = await Comment.create({
       item: item._id,
       author: req.user.id,
       parent: parent ? parent._id : null,
-      text: text.trim(),
+      text: text ? text.trim() : '',
+      attachments,
     });
     await comment.populate('author', 'name');
     await comment.populate({ path: 'parent', populate: { path: 'author', select: 'name' } });
+    // create a notification for the item owner (if different)
+    try {
+      if (item.postedBy.toString() !== req.user.id) {
+        const Notification = (await import('../models/Notification.js')).default;
+        await Notification.create({ user: item.postedBy, from: req.user.id, type: parent ? 'reply' : 'comment', item: item._id, comment: comment._id, text: (text || '').slice(0, 200) });
+        const io = getIo();
+        if (io) io.to(`user:${item.postedBy.toString()}`).emit('newComment', { comment, itemId: item._id });
+      }
+    } catch (err) {
+      console.error('Failed to create notification for comment:', err);
+    }
     res.status(201).json({ comment });
   })
 );

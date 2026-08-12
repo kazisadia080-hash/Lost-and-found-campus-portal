@@ -2,9 +2,11 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useLocation, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useAuth } from '../context/AuthContext';
+import { fileToCompressedDataUrl } from '../utils/image';
 import type { Conversation, Message } from '../types';
-import { Loader2, Send, ArrowLeft, Mail, MessageSquare } from 'lucide-react';
+import { Loader2, Send, ArrowLeft, Mail, MessageSquare, X } from 'lucide-react';
 import { toast } from '../components/Toast';
+import { getSocket } from '../socket';
 
 function getErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : 'Something went wrong. Please try again.';
@@ -24,7 +26,10 @@ export default function Messages() {
   const [loadingList, setLoadingList] = useState(true);
   const [loadingChat, setLoadingChat] = useState(false);
   const [text, setText] = useState('');
+  const [attachments, setAttachments] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const attachmentRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -58,6 +63,26 @@ export default function Messages() {
   }, [userId]);
 
   useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+    const handler = (payload: { message: Message }) => {
+      const m = payload.message;
+      // if the incoming message belongs to the currently opened conversation, append it
+      if (userId && (m.sender?._id === userId || m.recipient?._id === userId)) {
+        setActiveMessages((prev) => [...prev, m]);
+        api.conversations().then((data) => setConversations(data.conversations || []));
+      } else {
+        // refresh conversation list to update unread counts
+        api.conversations().then((data) => setConversations(data.conversations || []));
+      }
+    };
+    socket.on('newMessage', handler);
+    return () => {
+      socket.off('newMessage', handler);
+    };
+  }, [userId]);
+
+  useEffect(() => {
     if (!itemIdQuery) return;
     if (sharedItem?._id === itemIdQuery) return;
 
@@ -76,20 +101,40 @@ export default function Messages() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeMessages]);
 
+  const handleAttachmentFiles = async (files: FileList) => {
+    const list = Array.from(files).slice(0, 3 - attachments.length);
+    if (!list.length) return;
+    setUploadingAttachment(true);
+    try {
+      const compressed = await Promise.all(list.map((file) => fileToCompressedDataUrl(file)));
+      setAttachments((prev) => [...prev, ...compressed].slice(0, 3));
+    } catch {
+      toast('Could not process one of the selected files.', 'error');
+    } finally {
+      setUploadingAttachment(false);
+      if (attachmentRef.current) attachmentRef.current.value = '';
+    }
+  };
+
+  const removeAttachment = (index: number) =>
+    setAttachments((prev) => prev.filter((_, idx) => idx !== index));
+
   const send = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!text.trim() || !userId) return;
+    if ((!text.trim() && attachments.length === 0) || !userId) return;
     setSending(true);
     try {
-      const payload: { text: string; itemId?: string } = { text: text.trim() };
+      const payload: { text: string; itemId?: string; attachments?: string[] } = { text: text.trim() };
       if (itemIdQuery) {
         payload.itemId = itemIdQuery;
       } else if (sharedItem?._id) {
         payload.itemId = sharedItem._id;
       }
+      if (attachments.length > 0) payload.attachments = attachments;
       const { message } = await api.sendMessage(userId, payload);
       setActiveMessages((prev) => [...prev, message]);
       setText('');
+      setAttachments([]);
       api.conversations().then((data) => setConversations(data.conversations || []));
     } catch (err) {
       toast(getErrorMessage(err), 'error');
@@ -161,9 +206,7 @@ export default function Messages() {
                 </Link>
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-slate-800">{partner?.name || 'Loading…'}</p>
-                  <p className="flex items-center gap-1 text-xs text-slate-400">
-                    <Mail size={12} /> {partner?.email || ''}
-                  </p>
+                  {/* email intentionally hidden for privacy */}
                   {sharedItem ? (
                     <Link
                       to={`/items/${sharedItem._id}`}
@@ -203,11 +246,33 @@ export default function Messages() {
                           }`}
                         >
                           <p>{m.text}</p>
-                          <p className={`mt-1 text-[10px] ${isMe ? 'text-primary-100' : 'text-slate-400'}`}>
-                            {new Date(m.createdAt).toLocaleString(undefined, {
+                          {m.attachments && m.attachments.length > 0 && (
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                              {m.attachments.map((src, idx) => (
+                                <img
+                                  key={idx}
+                                  src={src}
+                                  alt={`attachment-${idx}`}
+                                  className="h-24 w-full rounded-xl object-cover cursor-pointer"
+                                  onClick={() => window.open(src, '_blank')}
+                                />
+                              ))}
+                            </div>
+                          )}
+                          <div className={`mt-1 text-[10px] ${isMe ? 'text-primary-100' : 'text-slate-400'}`}>
+                            <span>{new Date(m.createdAt).toLocaleString(undefined, {
                               month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-                            })}
-                          </p>
+                            })}</span>
+                            {isMe && (
+                              <span className="ml-2">
+                                {m.seenAt
+                                  ? `Seen ${new Date(m.seenAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                  : m.deliveredAt
+                                  ? 'Delivered'
+                                  : 'Sent'}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -217,17 +282,55 @@ export default function Messages() {
               </div>
 
               {/* Input */}
-              <form onSubmit={send} className="flex gap-2 border-t border-slate-100 p-3">
+              <form onSubmit={send} className="flex flex-col gap-3 border-t border-slate-100 p-3">
+                <div className="flex gap-2">
+                  <input
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder="Type a message…"
+                    maxLength={1000}
+                    className="input flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => attachmentRef.current?.click()}
+                    className="btn-secondary"
+                    disabled={uploadingAttachment}
+                  >
+                    Attach
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={sending || (!text.trim() && attachments.length === 0)}
+                    className="btn-primary"
+                  >
+                    {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  </button>
+                </div>
                 <input
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Type a message…"
-                  maxLength={1000}
-                  className="input flex-1"
+                  ref={attachmentRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => e.target.files && handleAttachmentFiles(e.target.files)}
                 />
-                <button type="submit" disabled={sending || !text.trim()} className="btn-primary">
-                  {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                </button>
+                {attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {attachments.map((src, idx) => (
+                      <div key={idx} className="relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200">
+                        <img src={src} alt={`attachment-${idx}`} className="h-full w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(idx)}
+                          className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </form>
             </div>
           )}

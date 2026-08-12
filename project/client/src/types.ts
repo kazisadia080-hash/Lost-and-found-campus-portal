@@ -20,6 +20,7 @@ export interface User {
   phone?: string;
   studentId?: string;
   role: Role;
+  status?: 'active' | 'pending' | 'suspended' | 'banned';
   createdAt?: string;
 }
 
@@ -44,6 +45,7 @@ export interface Comment {
   author: { _id: string; name: string };
   parent?: { _id: string; author?: { _id?: string; name: string } | null } | null;
   text: string;
+  attachments?: string[];
   createdAt: string;
 }
 
@@ -57,26 +59,32 @@ export interface Claim {
   resolvedAt?: string | null;
 }
 
-export interface Comment {
-  _id: string;
-  item: string;
-  author: { _id: string; name: string };
-  text: string;
-  createdAt: string;
-}
-
 export interface Message {
   _id: string;
   sender: { _id: string; name: string };
   recipient: { _id: string; name: string };
   item?: { _id: string; title: string } | null;
   text: string;
+  attachments?: string[];
   read: boolean;
+  deliveredAt?: string | null;
+  seenAt?: string | null;
   createdAt: string;
 }
 
+export interface Notification {
+  _id: string;
+  type: 'comment' | 'reply' | 'message' | 'claim';
+  text?: string;
+  from?: { _id: string; name: string };
+  item?: { _id: string; title?: string };
+  comment?: { _id: string; item?: { _id: string; title?: string } };
+  createdAt: string;
+  read: boolean;
+}
+
 export interface Conversation {
-  user: { _id: string; name: string; email: string };
+  user: { _id: string; name: string };
   lastMessage: string;
   lastAt: string | null;
   unread: number;

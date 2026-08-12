@@ -64,6 +64,9 @@ export default function Login() {
       <p className="mt-4 text-center text-sm text-slate-500">
         Don't have an account? <Link to="/register" className="link">Sign up</Link>
       </p>
+      <p className="mt-2 text-center text-sm text-slate-500">
+        Need to verify your university email? <Link to="/request-university-verify" className="link">Verify existing account</Link>
+      </p>
     </div>
   );
 }
